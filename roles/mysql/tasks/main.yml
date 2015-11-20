@@ -1,0 +1,11 @@
+---
+- include_vars: ../../../personal.yml
+
+- name: Create mysql database
+  mysql_db: name={{ wordpress_db }} state=present
+
+- name: Create mysql user
+  mysql_user: 
+    name={{ wordpress_db_user }}
+    password={{ wordpress_db_password }}
+    priv=*.*:ALL

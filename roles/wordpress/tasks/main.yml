@@ -1,0 +1,97 @@
+---
+- name: Download WordPress
+  get_url:
+    url=https://wordpress.org/latest.tar.gz
+    dest=/tmp/wordpress.tar.gz
+    validate_certs=no
+  sudo: yes
+
+- name: Extract WordPress
+  unarchive:
+    src=/tmp/wordpress.tar.gz
+    dest=/var/www/
+    copy=no
+  sudo: yes
+
+- name: Update default Apache site
+  sudo: yes
+  lineinfile:
+    dest=/etc/apache2/sites-enabled/000-default.conf
+    regexp="(.)+DocumentRoot /var/www/html"
+    line="DocumentRoot /var/www/wordpress"
+  notify:
+    - restart apache
+
+- name: Copy sample config file
+  command: mv /var/www/wordpress/wp-config-sample.php /var/www/wordpress/wp-config.php creates=/var/www/wordpress/wp-config.php
+  sudo: yes
+
+- include_vars: ../../../personal.yml
+
+- name: Update WordPress config file
+  lineinfile:
+    dest=/var/www/wordpress/wp-config.php
+    regexp="{{ item.regexp }}"
+    line="{{ item.line }}"
+  with_items:
+    - {'regexp': "define\\('DB_NAME', '(.)+'\\);", 'line': "define('DB_NAME', '{{ wordpress_db }}');"}
+    - {'regexp': "define\\('DB_USER', '(.)+'\\);", 'line': "define('DB_USER', '{{ wordpress_db_user }}');"}
+    - {'regexp': "define\\('DB_PASSWORD', '(.)+'\\);", 'line': "define('DB_PASSWORD', '{{ wordpress_db_password }}');"}
+  sudo: yes
+
+- name: Install WordPress
+  command: sudo -u {{ ubuntu_user }} -i -- wp core install --path=/var/www/wordpress --url="{{ wordpress_url }}"  --title="{{ wordpress_title }}" --admin_user="{{ wordpress_user }}" --admin_password="{{ wordpress_password }}" --admin_email="{{ wordpress_user_email }}" --allow-root
+
+- name: Download Woocommerce
+  get_url:
+    url=https://github.com/woothemes/woocommerce/archive/2.4.10.tar.gz
+    dest=/tmp/woocommerce.tar.gz
+    validate_certs=no
+  sudo: yes
+
+- name: Extract Woocommerce
+  unarchive:
+    src=/tmp/woocommerce.tar.gz
+    dest=/var/www/wordpress/wp-content/plugins
+    copy=no
+    follow=true
+  sudo: yes
+
+- name: Activate WooCommerce
+  command: wp plugin activate woocommerce-2.4.10 --path=/var/www/wordpress --allow-root
+  args:
+    chdir: /var/www/wordpress/
+
+- name: Download Omise Woocommerce
+  get_url:
+    url=https://github.com/omise/omise-woocommerce/archive/v1.1.0.tar.gz
+    dest=/tmp/omise-woocommerce.tar.gz
+    validate_certs=no
+  sudo: yes
+
+- name: Extract Omise Woocommerce
+  unarchive:
+    src=/tmp/omise-woocommerce.tar.gz
+    dest=/var/www/wordpress/wp-content/plugins
+    copy=no
+    follow=true
+  sudo: yes
+
+- name: Activate Omise WooCommerce
+  command: /var/www/wordpress/wp-content/plugins
+  command: wp plugin activate omise-woocommerce-1.1.0 --path=/var/www/wordpress --allow-root
+
+- name: Install eCommerce Theme
+  command: sudo wp theme install flat-shop-lite --activate --path=/var/www/wordpress --allow-root
+
+- name: Change owner for Wordpress to be www-data user group
+  command: chown -R www-data:www-data /var/www
+  sudo: yes
+
+- name: Change permission for all Wordpress directory
+  command: find /var/www/ -type d -exec chmod 755 {} \;
+  sudo: yes
+
+- name: Change permission for all Wordpress files
+  command: find /var/www/ -type f -exec chmod 644 {} \;
+  sudo: yes

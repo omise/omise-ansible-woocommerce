@@ -1,0 +1,7 @@
+---
+- name: Install WP-CLI
+  get_url:
+    url=https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
+    dest=/usr/bin/wp
+    mode=0755
+  sudo: yes
